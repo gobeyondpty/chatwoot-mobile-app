@@ -1,0 +1,37 @@
+name: Validate dark mode native source
+on:
+  push:
+    branches: [validation/dark-scene-native-20261028]
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HUSKY: '0'
+      EXPO_NO_TELEMETRY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.11.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+      - name: Tests
+        run: pnpm test --runInBand --ci
+      - name: Native JavaScript exports
+        run: pnpm exec expo export --platform ios --platform android --output-dir /tmp/dark-scene-exports
+      - name: Patch integrity
+        run: |
+          git diff --check a3469c3370c8a83d136347dcb265a1b1c0e540c6...HEAD
+          if git grep -n -E '^(<<<<<<< |=======|>>>>>>> )' -- '*.ts' '*.tsx'; then exit 1; fi
